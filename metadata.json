@@ -1,0 +1,6 @@
+{
+  "name": "Arabian Horse Registry",
+  "description": "Register and view Arabian horse entries with real-time multi-tab synchronization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
