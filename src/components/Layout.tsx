@@ -6,8 +6,11 @@ export default function Layout() {
     <div className="min-h-screen relative font-sans text-gray-900 bg-white">
       {/* Background Image Setup */}
       <div 
-        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${bgImage})` }}
+        className="fixed inset-0 z-0 bg-cover bg-no-repeat"
+        style={{ 
+          backgroundImage: `url(${bgImage})`,
+          backgroundPosition: 'center 30%'
+        }}
       />
 
       {/* Main UI */}
@@ -25,7 +28,7 @@ export default function Layout() {
                   }`
                 }
               >
-                تسجيل
+                المزايدة
               </NavLink>
               <NavLink
                 to="/list"
@@ -37,7 +40,7 @@ export default function Layout() {
                   }`
                 }
               >
-                عرض السجل
+                المزاد
               </NavLink>
             </nav>
           </div>
