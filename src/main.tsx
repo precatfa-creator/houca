@@ -1,3 +1,4 @@
+/** Browser entry point: mounts {@link App} into `#root` from index.html. */
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
