@@ -23,11 +23,13 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 const UNIQUE_VIOLATION = '23505';
 
+/** Maps a PostgREST error to an `Error` with an Arabic, user-facing message. */
 function toUserError(error: PostgrestError): Error {
   if (error.code === UNIQUE_VIOLATION) return new Error('رقم اللوت مستخدم لحصان آخر');
   return new Error(ERROR_MESSAGES[error.message] ?? `خطأ في الخادم: ${error.message}`);
 }
 
+/** Calls a SQL function and returns its result, throwing a user-facing error. */
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(fn, args);
   if (error) throw toUserError(error);
@@ -101,18 +103,28 @@ export async function replacePhoto(horse: Pick<Horse, 'id' | 'image_path'>, file
 
   const { error } = await db().from('horses').update({ image_path: path }).eq('id', horse.id);
   if (error) {
-    await storage.remove([path]);
+    await removePhoto(path);
     throw toUserError(error);
   }
   // Old photo is orphaned now; a failed cleanup only wastes storage.
-  if (horse.image_path) await storage.remove([horse.image_path]);
+  if (horse.image_path) await removePhoto(horse.image_path);
+}
+
+/**
+ * Deletes a stored photo. Storage reports "nothing deleted" (e.g. when RLS
+ * hides the file) as success with an empty list, so check the list too.
+ * Failures only leave an orphaned file, so they are logged, not thrown.
+ */
+async function removePhoto(path: string): Promise<void> {
+  const { data, error } = await db().storage.from(PHOTO_BUCKET).remove([path]);
+  if (error || data?.length === 0) console.warn('Horse photo was not deleted', path, error);
 }
 
 /** Deletes a horse (its reserve cascades) and its photo. */
 export async function deleteHorse(horse: Pick<Horse, 'id' | 'image_path'>): Promise<void> {
   const { error } = await db().from('horses').delete().eq('id', horse.id);
   if (error) throw toUserError(error);
-  if (horse.image_path) await db().storage.from(PHOTO_BUCKET).remove([horse.image_path]);
+  if (horse.image_path) await removePhoto(horse.image_path);
 }
 
 // ------------------------------------------------------------ live auction
@@ -139,11 +151,16 @@ export const reopenHorse = (horseId: string) => rpc<void>('reopen_horse', { p_ho
 
 // ------------------------------------------------------------------- auth
 
+/** Signs a staff member in with email and password. */
 export async function signIn(email: string, password: string): Promise<void> {
   const { error } = await db().auth.signInWithPassword({ email, password });
   if (error) throw new Error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
 }
 
+/** Whether the signed-in user is on the staff allowlist (`public.staff`). */
+export const isStaff = () => rpc<boolean>('is_staff');
+
+/** Signs the current staff member out on this device. */
 export async function signOut(): Promise<void> {
   await db().auth.signOut();
 }

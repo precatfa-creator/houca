@@ -22,6 +22,10 @@ Major version because the app now needs a Supabase backend and environment varia
 
 ### Security
 - Reserve amounts are stored in a staff-only table. The public key can only read the catalog and the live-auction pointer.
+- Staff allowlist (`public.staff`): only listed users can write, so an account created through public sign-up gets read-only access. Accounts that aren't staff see a "not authorized" notice instead of the control panel.
+
+### Fixed
+- Deleting or replacing a photo now removes the old file. Storage was missing a `select` policy, so `remove()` silently deleted nothing.
 
 ## [1.0.0] - 2026-11-04
 

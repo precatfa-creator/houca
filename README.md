@@ -37,8 +37,11 @@ The whole file is checked before anything is saved. If any row is invalid, nothi
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. In **SQL Editor**, run each file in `supabase/migrations/` in filename order, one query per file.
-3. In **Authentication → Sign In / Providers**, turn **off** "Allow new users to sign up". Otherwise anyone holding the public key could create an account and get staff access.
-4. In **Authentication → Users → Add user**, create a login for each admin or manager.
+3. In **Authentication → Sign In / Providers**, turn **off** "Allow new users to sign up". The staff allowlist already denies write access to self-registered accounts; turning sign-up off also keeps them from being created at all.
+4. In **Authentication → Users → Add user**, create a login for each admin or manager. Users that exist when the staff-allowlist migration runs become staff automatically. To add staff later, create the user, then run:
+   ```sql
+   insert into public.staff (user_id) select id from auth.users where email = 'name@example.com';
+   ```
 
 ### 2. Environment variables
 
@@ -78,14 +81,15 @@ Without the environment variables, the app shows a setup notice instead of the U
 | Role                          | Can do                                                                                           |
 | ----------------------------- | ------------------------------------------------------------------------------------------------ |
 | Public (`anon`, the board)    | Read horses and the live-auction pointer. Cannot read reserves, write anything, or call any function. |
-| Staff (`authenticated`)       | Manage the catalog, reserves, and photos; bid, sell, stop, and undo through SQL functions.      |
+| Staff (listed in `public.staff`) | Manage the catalog, reserves, and photos; bid, sell, stop, and undo through SQL functions.   |
+| Other signed-in accounts      | Same read access as the public. The control panel shows a "not authorized" notice.          |
 
 - Reserves live in their own table, `horse_reserves`, which `anon` cannot read, including over Realtime.
-- `auction_state` has no write policy. It changes only through the security-definer functions `start_auction`, `stop_auction`, `raise_bid`, `place_bid`, `sell_horse`, and `reopen_horse`.
+- Writes are allowed only when `public.is_staff()` is true. The auction functions (`start_auction`, `stop_auction`, `raise_bid`, `place_bid`, `sell_horse`, `reopen_horse`) run as the caller, so the same row-level security applies to them.
 - `save_horse` and `import_horses` write a horse and its reserve in one transaction. A horse can never be saved without its reserve.
 - The `horse-photos` bucket is public-read, staff-write, and limited to 5 MB JPEG/PNG/WEBP files.
 
-There is no separate admin or manager role: every signed-in user has full staff rights.
+There is no separate admin or manager role: everyone on the staff list has the same rights.
 
 ## Project structure
 
