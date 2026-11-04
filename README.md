@@ -1,84 +1,130 @@
 # Arabian Horse Auction
 
-A live auction display for Arabian horses (Arabic, right-to-left UI, prices in Libyan dinars — د.ل).
+A live auction system for Arabian horses (Arabic, right-to-left UI, prices in Libyan dinars — د.ل). It runs on Supabase, so every device sees the same auction in real time.
 
-The app has two screens that run in separate tabs of the **same browser**:
+| Route   | Screen         | Who uses it                                                       |
+| ------- | -------------- | ----------------------------------------------------------------- |
+| `/`     | Control panel  | Admins and managers (sign-in required): catalog and live bidding  |
+| `/list` | Auction board  | Audience: full-screen display for a projector or TV (no sign-in)  |
 
-| Route   | Screen         | Who uses it                                                          |
-| ------- | -------------- | -------------------------------------------------------------------- |
-| `/`     | Control panel  | Auction operator: introduces a horse, records bids, confirms the sale |
-| `/list` | Auction board  | Audience: full-screen display for a projector or TV                  |
+## Features
 
-Each change in the control panel shows up on the board right away, with an animation.
+- **Horse catalog.** Each horse has a name, lot number (unique; text such as `12A` is allowed), color, date of birth, gender, and photo. Add and edit horses one at a time, or import many from Excel.
+- **Reserve price.** Tick "Reserved" and enter an amount. In the list, a horse's current bid shows **red** until it reaches the reserve and **green** at or above it. Selling below the reserve is still allowed, but needs a second click to confirm. Reserve amounts are never sent to the public board.
+- **Live bidding.** Click a horse in the list to put it on the block. Raise the price with **+1k / +5k / +10k**, or type a new total price, which must be higher than the current one. The first +1k on a horse with no bids gives 1,000.
+- **Sell, stop, undo.** "Sell" confirms the sale and the board shows a 4-second "sold" screen. "Stop" takes the horse off the block and keeps its bids. "Undo sale" (in the panel, or the ↶ icon in the list) cancels a sale and reopens bidding at the last price.
+- **Cross-device sync.** Every screen subscribes to Supabase Realtime and refetches after each change and each reconnect. Several operators can work at once: bids are applied atomically on the server, so simultaneous clicks never overwrite each other.
 
-## How an auction runs
+## Excel import
 
-1. **Introduce:** the operator enters a horse name. The board shows the name and "waiting for opening" (في انتظار افتتاح المزاد).
-2. **Bid:** the operator enters each new bid. A bid must be a positive number higher than the current price. The board animates each new price.
-3. **Sell:** the operator confirms the sale. The board shows a "sold" screen (تم البيع!) for 4 seconds, then goes back to the waiting screen.
-4. **Cancel** (optional): "إلغاء العرض" ends the current auction without a sale.
+Download the template from the control panel ("تحميل القالب"). The first sheet must have these exact headers:
 
-## Getting started
+| Column           | Required             | Values                                    |
+| ---------------- | -------------------- | ----------------------------------------- |
+| `Horse Name`     | Yes                  | Text                                      |
+| `LOT Number`     | Yes                  | Unique; must not already exist            |
+| `Color`          | No                   | Text                                      |
+| `Date of Birth`  | No                   | Excel date, `YYYY-MM-DD`, or `DD/MM/YYYY` |
+| `Gender`         | Yes                  | `Male` / `Female` (also `ذكر` / `أنثى`)    |
+| `Reserved`       | Yes                  | `Yes` / `No`                              |
+| `Reserve Amount` | When Reserved = Yes  | Positive number in LYD                    |
 
-Requires Node.js 22.18 or newer. The test script runs TypeScript directly in Node.
+The whole file is checked before anything is saved. If any row is invalid, nothing is imported and the errors are listed by sheet row. Otherwise every horse is inserted in a single transaction. Photos can't come from Excel; add them afterwards by editing each horse.
+
+## Setup
+
+### 1. Supabase project
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In **SQL Editor**, run each file in `supabase/migrations/` in filename order, one query per file.
+3. In **Authentication → Sign In / Providers**, turn **off** "Allow new users to sign up". Otherwise anyone holding the public key could create an account and get staff access.
+4. In **Authentication → Users → Add user**, create a login for each admin or manager.
+
+### 2. Environment variables
+
+Copy `.env.example` to `.env` and fill in the values from **Project Settings → API Keys**:
+
+```bash
+VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_...   # publishable key (or legacy anon key)
+```
+
+Both values are public by design: they end up in the browser bundle. Access is enforced by row-level security. **Never** use the `sb_secret_...` or `service_role` key here.
+
+### 3. Run
+
+Requires Node.js 22.18 or newer.
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
 ```
 
-Open `http://localhost:3000/` in one tab and `http://localhost:3000/list` in another tab of the same browser. On a second screen, drag the board tab into its own window.
+Without the environment variables, the app shows a setup notice instead of the UI.
 
 ### Scripts
 
-| Script            | What it does                                    |
-| ----------------- | ----------------------------------------------- |
-| `npm run dev`     | Starts the Vite dev server on port 3000         |
-| `npm run build`   | Builds a production bundle into `dist/`         |
-| `npm run preview` | Serves the built bundle locally                 |
+| Script            | What it does                                     |
+| ----------------- | ------------------------------------------------ |
+| `npm run dev`     | Starts the Vite dev server on port 3000          |
+| `npm run build`   | Builds a production bundle into `dist/`          |
+| `npm run preview` | Serves the built bundle locally                  |
 | `npm run lint`    | Type-checks the project with `tsc` (strict mode) |
 | `npm test`        | Runs unit tests with Node's built-in test runner |
-| `npm run clean`   | Deletes `dist/`                                 |
+| `npm run clean`   | Deletes `dist/`                                  |
 
-## How sync works, and its limits
+## Security model
 
-The app has no backend. All state is stored in `localStorage` under the key `arabian_horse_auction_state`:
+| Role                          | Can do                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| Public (`anon`, the board)    | Read horses and the live-auction pointer. Cannot read reserves, write anything, or call any function. |
+| Staff (`authenticated`)       | Manage the catalog, reserves, and photos; bid, sell, stop, and undo through SQL functions.      |
 
-```ts
-interface AuctionState {
-  horseName: string;           // horse currently on the block
-  currentPrice: number | null; // highest bid, null before the first bid
-  timestamp: number;           // epoch ms of the last change
-  isSold: boolean;             // true once the sale is confirmed
-}
-```
+- Reserves live in their own table, `horse_reserves`, which `anon` cannot read, including over Realtime.
+- `auction_state` has no write policy. It changes only through the security-definer functions `start_auction`, `stop_auction`, `raise_bid`, `place_bid`, `sell_horse`, and `reopen_horse`.
+- `save_horse` and `import_horses` write a horse and its reserve in one transaction. A horse can never be saved without its reserve.
+- The `horse-photos` bucket is public-read, staff-write, and limited to 5 MB JPEG/PNG/WEBP files.
 
-Every action writes this key. Other tabs get the browser's `storage` event and re-render. This means:
-
-- **Same browser, same machine only.** A phone, a second computer, or another browser on the same computer will **not** see the auction. That includes devices reaching the dev server over the LAN.
-- One auction at a time.
-- Bids are not kept. Only the current price is stored, so there is no bid history after a sale.
-- If the stored value is corrupt or edited by hand, it is thrown away and the app starts empty.
-
-Running the control panel and the board on separate devices would need a real-time backend, such as WebSockets or a hosted realtime database.
+There is no separate admin or manager role: every signed-in user has full staff rights.
 
 ## Project structure
 
 ```
+supabase/migrations/          Database schema, RLS, functions, realtime, storage
 src/
-  main.tsx                 React entry point
-  App.tsx                  Routes and toast container
-  index.css                Tailwind v4 setup and fonts (Cairo, Tajawal)
-  components/Layout.tsx    Background, header, and navigation
-  pages/RegisterPage.tsx   Control panel (/)
-  pages/ListPage.tsx       Public auction board (/list)
-  hooks/useAuction.ts      Shared auction state and cross-tab sync
-  lib/auction.ts           Pure logic: state type, validation, price formatting
-  lib/auction.test.ts      Unit tests for lib/auction.ts
+  main.tsx                    React entry point
+  App.tsx                     Routes, setup notice, toast container
+  index.css                   Tailwind v4 setup and fonts (Cairo, Tajawal)
+  lib/
+    horses.ts                 Pure logic: types, reserve status, age, formatting, Excel row validation
+    horses.test.ts            Unit tests for horses.ts
+    api.ts                    Supabase reads, writes, and RPC calls with Arabic error messages
+    excel.ts                  Template download and sheet reading (SheetJS, loaded on demand)
+    supabase.ts               Supabase client from environment variables
+  hooks/
+    useAuctionData.ts         Realtime-synced catalog and live-auction state
+    useSession.ts             Staff auth session
+    useAction.ts              Runs an action with busy state and toasts
+  components/
+    Layout.tsx                Background, header, navigation, sign-out
+    StaffOnly.tsx             Sign-in guard for the control panel
+    HorseList.tsx             Catalog list with reserve colours, undo, edit, and delete
+    HorseFormDialog.tsx       Add/edit dialog (catalogue card)
+    LiveAuctionPanel.tsx      Bidding, sell, stop, and undo controls
+    ImportControls.tsx        Template download and Excel import
+    ConfirmButton.tsx         Two-click confirmation button
+    HorsePhoto.tsx            Photo or placeholder
+    SetupNotice.tsx           Shown when the environment variables are missing
+  pages/
+    AdminPage.tsx             Control panel (/)
+    LoginPage.tsx             Staff sign-in
+    ListPage.tsx              Public auction board (/list)
 ```
 
-Stack: React 19, React Router 7, Vite 6, Tailwind CSS 4, Motion (animations), Sonner (toasts), and lucide-react (icons).
+Stack: React 19, React Router 7, Vite 6, Tailwind CSS 4, Supabase (Postgres, Auth, Realtime, Storage), SheetJS, Motion, Sonner, and lucide-react.
 
-## Deployment
+## Deployment (Netlify)
 
-`npm run build` produces a static site in `dist/`. `netlify.toml` sends every path to `index.html`, so opening `/list` directly works on Netlify. On other static hosts, set up the same single-page-app fallback.
+1. Under **Site configuration → Environment variables**, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then redeploy. The values are compiled in at build time.
+2. `netlify.toml` sends every path to `index.html`, so opening `/list` directly works.
+3. Before each deploy, run any new files in `supabase/migrations/` on the database.
