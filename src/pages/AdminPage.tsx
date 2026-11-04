@@ -37,7 +37,7 @@ export default function AdminPage() {
   }, [status]);
 
   return (
-    <div className="max-w-7xl mx-auto grid gap-6 lg:grid-cols-[1fr_26rem] items-start">
+    <div className="max-w-7xl mx-auto grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_26rem] items-start">
       <section className="backdrop-blur-md bg-white/85 rounded-2xl shadow-xl border border-white/50 p-4 md:p-6 order-2 lg:order-1">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h1 className="text-2xl font-bold font-serif">قائمة الخيول <span className="text-gray-400 text-lg">({horses.length})</span></h1>
