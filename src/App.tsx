@@ -1,14 +1,15 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Layout from './components/Layout';
 import RegisterPage from './pages/RegisterPage';
 import ListPage from './pages/ListPage';
 
+/**
+ * Root component: client-side routes and the global toast container.
+ *
+ * - `/`     — operator control panel ({@link RegisterPage})
+ * - `/list` — public auction board for a projector or TV ({@link ListPage})
+ */
 export default function App() {
   return (
     <BrowserRouter>
