@@ -28,7 +28,7 @@ export default function Layout() {
       />
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        <header className="py-6 px-4 md:px-8 bg-white/40 border-b border-white/40 sticky top-0">
+        <header className="py-3 md:py-6 px-4 md:px-8 bg-white/40 border-b border-white/40 sticky top-0 z-20">
           <div className="max-w-7xl mx-auto flex items-center justify-end">
             <nav className="flex gap-2">
               <NavLink to="/" className={navLinkClass}>
