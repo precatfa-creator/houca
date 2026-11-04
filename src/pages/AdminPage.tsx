@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { HorseFormDialog } from '../components/HorseFormDialog';
 import { HorseList } from '../components/HorseList';
+import { ImportControls } from '../components/ImportControls';
 import { LiveAuctionPanel } from '../components/LiveAuctionPanel';
 import { useAction } from '../hooks/useAction';
 import { useAuctionData } from '../hooks/useAuctionData';
@@ -23,6 +24,7 @@ export default function AdminPage() {
   const { busy, run } = useAction();
 
   const sortedHorses = useMemo(() => [...horses].sort(compareLots), [horses]);
+  const existingLots = useMemo(() => new Set(horses.map((h) => h.lot)), [horses]);
   const activeHorse = horses.find((h) => h.id === activeHorseId) ?? null;
 
   const handleStart = (horse: Horse) => run(() => startAuction(horse.id), `بدأ المزاد على ${horse.name}`);
@@ -40,6 +42,7 @@ export default function AdminPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h1 className="text-2xl font-bold font-serif">قائمة الخيول <span className="text-gray-400 text-lg">({horses.length})</span></h1>
           <div className="flex flex-wrap gap-2 items-start">
+            <ImportControls existingLots={existingLots} />
             <button type="button" onClick={() => setEditing({ horse: null })}
               className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-gray-900 text-amber-400 hover:bg-gray-800">
               <Plus size={16} aria-hidden /> إضافة حصان
