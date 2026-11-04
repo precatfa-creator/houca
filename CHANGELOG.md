@@ -22,6 +22,7 @@ Major version because the app now needs a Supabase backend and environment varia
 
 ### Security
 - Reserve amounts are stored in a staff-only table. The public key can only read the catalog and the live-auction pointer.
+- Reserves are no longer published over Realtime. Empty events used to reveal to the public that a horse had a reserve, though not the amount.
 - Staff allowlist (`public.staff`): only listed users can write, so an account created through public sign-up gets read-only access. Accounts that aren't staff see a "not authorized" notice instead of the control panel.
 
 ### Fixed

@@ -45,7 +45,9 @@ export function useAuctionData(withReserves: boolean): AuctionData {
       }
     };
 
-    const tables = withReserves ? ['horses', 'auction_state', 'horse_reserves'] : ['horses', 'auction_state'];
+    // horse_reserves is deliberately not published to Realtime; reserve
+    // changes always touch `horses` too, which triggers the refetch.
+    const tables = ['horses', 'auction_state'];
     const channel = tables.reduce(
       (ch, table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, refetch),
       client.channel(`auction-${withReserves ? 'staff' : 'board'}`),
