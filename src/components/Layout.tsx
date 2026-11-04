@@ -1,4 +1,7 @@
+import { LogOut } from 'lucide-react';
 import { NavLink, Outlet, type NavLinkRenderProps } from 'react-router-dom';
+import { useSession } from '../hooks/useSession';
+import { signOut } from '../lib/api';
 import bgImage from '../assets/images/horse-background.jpg';
 
 /** Tailwind classes for a header nav pill, highlighted when its route is active. */
@@ -11,10 +14,12 @@ function navLinkClass({ isActive }: NavLinkRenderProps): string {
 
 /**
  * App shell: fixed horse background, sticky header with navigation between
- * the operator control panel (`/`) and the public auction board (`/list`),
+ * the staff control panel (`/`) and the public auction board (`/list`),
  * and an outlet for the active page.
  */
 export default function Layout() {
+  const session = useSession();
+
   return (
     <div className="min-h-screen relative font-sans text-gray-900 bg-white">
       <div
@@ -32,6 +37,12 @@ export default function Layout() {
               <NavLink to="/list" className={navLinkClass}>
                 المزاد
               </NavLink>
+              {session && (
+                <button type="button" onClick={signOut} title="تسجيل الخروج"
+                  className="px-3 py-2.5 rounded-full bg-white/60 text-gray-600 hover:bg-white/80 hover:text-gray-900 shadow-sm">
+                  <LogOut size={18} aria-label="تسجيل الخروج" />
+                </button>
+              )}
             </nav>
           </div>
         </header>
